@@ -14,14 +14,98 @@ export const ACTIONS = {
 function reducer(state, { type, payload }) {
   switch (type) {
     case ACTIONS.ADD_DIGIT:
+
+	if(state.overwrite){
+		return {
+			...state,
+			currentOperand : payload.digit,
+			overwrite : false
+		}
+	}
+      if (payload.digit === '0' && state.currentOperand === '0') return state;
+      if (payload.digit === '.' && state.currentOperand.includes('.'))
+        return state;
       return {
         ...state,
         currentOperand: `${state.currentOperand || ''}${payload.digit}`,
       };
 
+    case ACTIONS.CHOOSE_OPERATION:
+      if (state.currentOperand == null && state.previousOperand == null) {
+        return state;
+      }
+      if (state.previousOperand == null) {
+        return {
+          ...state,
+          operation: payload.operation,
+          previousOperand: state.currentOperand,
+          currentOperand: null,
+        };
+      }
+
+      if (state.currentOperand === null) {
+        return {
+          ...state,
+          operation: payload.operation,
+        };
+      }
+
+      return {
+        ...state,
+        previousOperand: evaluate(state),
+        operation: payload.operation,
+        currentOperand: null,
+      };
+
+    case ACTIONS.CLEAR:
+      return {};
+
+    case ACTIONS.EVALUATE:
+      if (
+        state.operation == null ||
+        state.currentOperand == null ||
+        state.previousOperand == null
+      ) {
+        return state;
+      }
+	  return {
+		  ...state,
+		  previousOperand : null,
+		  currentOperand : evaluate(state),
+		  operation : null,
+		  overwrite : true
+	  }
+
     default:
       break;
   }
+}
+
+function evaluate({ currentOperand, previousOperand, operation }) {
+  const prev = parseFloat(previousOperand);
+  const current = parseFloat(currentOperand);
+  if (isNaN(prev) && isNaN(current)) return '';
+
+  let computation = '';
+
+  switch (operation) {
+    case '+':
+      computation = prev + current;
+      break;
+    case '-':
+      computation = prev - current;
+      break;
+    case '*':
+      computation = prev * current;
+      break;
+    case '÷':
+      computation = prev / current;
+      break;
+
+    default:
+      break;
+  }
+  return computation.toString();
 }
 
 function App() {
@@ -29,8 +113,6 @@ function App() {
     reducer,
     {}
   );
-
-  //   dispatch({ type: ACTIONS.ADD_DIGIT, payload: { digit: 1 } });
 
   return (
     <div className='calculator-grid'>
@@ -40,7 +122,11 @@ function App() {
         </div>
         <div className='current-operand'>{currentOperand}</div>
       </div>
-      <button className='span-two'>AC</button>
+      <button
+        className='span-two'
+        onClick={() => dispatch({ type: ACTIONS.CLEAR })}>
+        AC
+      </button>
       <button>DEL</button>
       <OperationButton operation='÷' dispatch={dispatch} />
       <DigitButton digit='1' dispatch={dispatch} />
@@ -60,7 +146,11 @@ function App() {
       <OperationButton operation='-' dispatch={dispatch} />
       <DigitButton digit='.' dispatch={dispatch} />
       <DigitButton digit='0' dispatch={dispatch} />
-      <button className='span-two'>=</button>
+      <button
+        className='span-two'
+        onClick={() => dispatch({ type: ACTIONS.EVALUATE })}>
+        =
+      </button>
     </div>
   );
 }
